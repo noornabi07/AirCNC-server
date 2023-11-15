@@ -46,7 +46,13 @@ async function run() {
                 $set: user,
             }
             const result = await usersCollection.updateOne(query, updateDoc, options);
-            console.log('result:', result);
+            res.send(result);
+        })
+
+        // save a room in to the database
+        app.post('/rooms', async(req, res) =>{
+            const room = req.body;
+            const result = await roomsCollection.insertOne(room);
             res.send(result);
         })
 
