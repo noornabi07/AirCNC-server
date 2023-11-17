@@ -64,10 +64,39 @@ async function run() {
 
         })
 
+        // get users by the email
+        app.get('/users/:email', async(req, res) =>{
+            const email = req.params.email;
+            const query = {email: email};
+            const result = await usersCollection.findOne(query);
+            res.send(result);
+        })
+
         // save a room in to the database
         app.post('/rooms', async(req, res) =>{
             const room = req.body;
             const result = await roomsCollection.insertOne(room);
+            res.send(result);
+        })
+
+        // update status for rooms
+        app.patch('/rooms/status/:id', async(req, res) =>{
+            const id = req.params.id;
+            const status = req.body.status;
+            const query = {_id: new ObjectId(id)};
+            const updateDoc = {
+                $set : {
+                    booked: status
+                }
+            }
+            const result = await roomsCollection.updateOne(query, updateDoc);
+            res.send(result);
+        })
+
+        // save a booking in to the database
+        app.post('/bookings', async(req, res) =>{
+            const booking = req.body;
+            const result = await bookingsCollection.insertOne(booking);
             res.send(result);
         })
 
