@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const morgan = require('morgan')
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
@@ -13,7 +14,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
-
+app.use(morgan('dev'));
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -112,7 +113,7 @@ async function run() {
             res.send(result);
         })
 
-        // get booking by the user email
+        // get booking by the user email guest
         app.get('/bookings', async (req, res) => {
             const email = req.query.email;
 
@@ -121,6 +122,18 @@ async function run() {
             }
 
             const query = { 'guest.email': email };
+            const result = await bookingsCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        // get manage booking by the booking select host
+        app.get('/manageBookings', async(req, res) =>{
+            const email = req.query.email;
+            if(!email){
+                res.send([])
+            }
+
+            const query = { host: email};
             const result = await bookingsCollection.find(query).toArray();
             res.send(result);
         })
