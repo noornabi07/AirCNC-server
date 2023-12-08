@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const morgan = require('morgan')
+const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
@@ -29,6 +30,24 @@ const client = new MongoClient(uri, {
     }
 });
 
+
+// validate verify jwt
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: 'Unauthorized Access' })
+    }
+    const token = authorization.split(' ')[1];
+    // verify token 
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ error: true, message: 'Unauthorized Access' })
+        }
+        req.decoded = decoded;
+        next();
+    });
+}
+
 async function run() {
     try {
 
@@ -36,6 +55,13 @@ async function run() {
         const roomsCollection = client.db("aircncDB").collection("rooms");
         const bookingsCollection = client.db("aircncDB").collection("bookings");
 
+
+        app.post('/jwt', async (req, res) => {
+            const email = req.body;
+            const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ token });
+
+        })
 
         // users info save in to the DB
         app.put('/users/:email', async (req, res) => {
@@ -66,8 +92,12 @@ async function run() {
         })
 
         // get room by the using email
-        app.get('/rooms/:email', async (req, res) => {
+        app.get('/rooms/:email', verifyJWT, async (req, res) => {
+            const decodedEmail = req.decoded.email;
             const email = req.params.email;
+            if(email !== decodedEmail){
+                return res.status(403).send({ error: true, message: 'Forbidden Access' })
+            }
             const query = { 'host.email': email };
             const result = await roomsCollection.find(query).toArray();
             res.send(result);
@@ -106,9 +136,9 @@ async function run() {
         })
 
         // delete a room by the user id
-        app.delete('/rooms/:id', async(req, res) =>{
+        app.delete('/rooms/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await roomsCollection.deleteOne(query);
             res.send(result);
         })
@@ -127,13 +157,13 @@ async function run() {
         })
 
         // get manage booking by the booking select host
-        app.get('/manageBookings', async(req, res) =>{
+        app.get('/manageBookings', async (req, res) => {
             const email = req.query.email;
-            if(!email){
+            if (!email) {
                 res.send([])
             }
 
-            const query = { host: email};
+            const query = { host: email };
             const result = await bookingsCollection.find(query).toArray();
             res.send(result);
         })
