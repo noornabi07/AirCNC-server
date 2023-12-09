@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
+const stripe = require("stripe")(`${process.env.PAYMENT_PRIVET_KEY}`);
+
 // middleware
 const corsOptions = {
     origin: '*',
@@ -56,6 +58,20 @@ async function run() {
         const bookingsCollection = client.db("aircncDB").collection("bookings");
 
 
+        // Generate client secret for payment
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            if (price) {
+                const amount = parseFloat(price) * 100;
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: amount,
+                    currency: 'usd',
+                    payment_method_types: ['card']
+                })
+                res.send({ clientSecret: paymentIntent.client_secret })
+            }
+        })
+
         app.post('/jwt', async (req, res) => {
             const email = req.body;
             const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
@@ -95,7 +111,7 @@ async function run() {
         app.get('/rooms/:email', verifyJWT, async (req, res) => {
             const decodedEmail = req.decoded.email;
             const email = req.params.email;
-            if(email !== decodedEmail){
+            if (email !== decodedEmail) {
                 return res.status(403).send({ error: true, message: 'Forbidden Access' })
             }
             const query = { 'host.email': email };
