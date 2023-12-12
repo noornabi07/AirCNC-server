@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const morgan = require('morgan')
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
@@ -48,6 +49,33 @@ const verifyJWT = (req, res, next) => {
         req.decoded = decoded;
         next();
     });
+}
+
+
+// send mail fuctiionality
+const sendMail = (emailData, emailAddress) => {
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL,
+            pass: process.env.PASS,
+        }
+    })
+
+    const mailOptions = {
+        from: process.env.EMAIl,
+        to: emailAddress,
+        subject: emailData.subject,
+        html: `<p>${emailData?.message}</p>`
+    }
+
+    transporter.sendMail(mailOptions, function (err, info) {
+        if (err) {
+            console.log(err)
+        } else {
+            console.log('Email sent: ' + info.response)
+        }
+    })
 }
 
 async function run() {
@@ -188,6 +216,23 @@ async function run() {
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
             const result = await bookingsCollection.insertOne(booking);
+            // send confirmation email to guest in email account
+            sendMail(
+                {
+                    subject: 'Booking successful!',
+                    message: `Booking Id: ${result?.insertedId}, TransactionId: ${booking.transectionId}`
+                },
+                booking?.guest?.email
+            )
+
+            // send confirmation email to host in email account
+            sendMail(
+                {
+                    subject: 'Your room got booked!',
+                    message: `Booking Id: ${result?.insertedId}, TransactionId: ${booking.transectionId}`
+                },
+                booking.host
+            )
             res.send(result);
         })
 
